@@ -101,9 +101,7 @@ size_t strlen(const unicode *u)
     return i;
 }
 
-static SpriteHandle unicodeSpriteMap[65280] = {NULL};
-static int unicodeCharLeftEdgeOffset[65280];
-static int unicodeCharWidth[65280];
+static Image *unicodeSpriteImage[256];
 
 Font::Font( const char *inFileName, int inCharSpacing, int inSpaceWidth,
             char inFixedWidth, double inScaleFactor, int inFixedCharWidth )
@@ -133,35 +131,57 @@ Font::Font( const char *inFileName, int inCharSpacing, int inSpaceWidth,
         // hold onto these for true kerning after
         // we've read this data for all characters
         rgbaColor *savedCharacterRGBA[256];
+        std::cout << "load font" << std::endl;
         
         for( int f=0; f<256; f++) {
             // read unicode font
             if(f > 0) {
-                // unicode has setup
-                if(unicodeSpriteMap[65] != NULL) {
-                    break;
+                // unicode hasn't setup
+                if(unicodeSpriteImage[f] == NULL) {
+                    char filename[28];
+                    sprintf(filename, "unicode/unicode_page_%02x.tga", f);
+                    spriteImage = readTGAFile( filename );
+                    if(spriteImage == NULL)
+                        continue;
+
+                    unicodeSpriteImage[f] = spriteImage;
                 }
-                char filename[28];
-                sprintf(filename, "unicode/unicode_page_%02x.tga", f);
-                // spriteImage = readTGAFile( filename );
-                spriteImage = readTGAFile( inFileName );
-                if(spriteImage == NULL)
-                    continue;
+                else
+                    spriteImage = unicodeSpriteImage[f];
             }
+            mSpriteWidth = width / 16;
+            mSpriteHeight = height / 16;
+
+            int realWidth = spriteImage->getWidth();
+            int realHeight = spriteImage->getHeight();
+            int realSpriteWidth = realWidth / 16;
+            int realSpriteHeight = realHeight / 16;
 
             rgbaColor *spriteRGBA = new rgbaColor[ numPixels ];
             unsigned char *spriteBytes = 
                 RGBAImage::getRGBABytes( spriteImage );
             
-            delete spriteImage;
+            if(f == 0)
+                delete spriteImage;
 
+            int index = 0;
             for( int i=0; i<numPixels; i++ ) {
+                // x, y in a char sprite
+                int x = i % mSpriteWidth;
+                int y = (i / width) % mSpriteHeight;
                 
                 for( int b=0; b<4; b++ ) {
                     
-                    spriteRGBA[i].bytes[b] = spriteBytes[ i*4 + b ];
+                    if(x >= realSpriteWidth || y < mSpriteHeight - realSpriteHeight)
+                        // padding with black
+                        spriteRGBA[i].bytes[b] = 0;
+                    else {
+                        spriteRGBA[i].bytes[b] = spriteBytes[ index ];
+                        ++index;
+                    }
                     }
                 }
+            assert(index == realWidth*realHeight*4);
             
             delete [] spriteBytes;
             
@@ -180,9 +200,7 @@ Font::Font( const char *inFileName, int inCharSpacing, int inSpaceWidth,
                 }
                 
                             
-                    
-            mSpriteWidth = width / 16;
-            mSpriteHeight = height / 16;
+            
             
             if( mSpriteHeight == mSpriteWidth ) {
                 mAccentsPresent = false;
@@ -309,18 +327,6 @@ Font::Font( const char *inFileName, int inCharSpacing, int inSpaceWidth,
                 }
             }
             delete [] spriteRGBA;
-        }
-        
-        // unicode has setup
-        if(unicodeSpriteMap[65] != NULL) {
-            memcpy( mSpriteMap+256, unicodeSpriteMap, 65280 * sizeof( SpriteHandle ) );
-            memcpy( mCharLeftEdgeOffset+256, unicodeCharLeftEdgeOffset, 65280 * sizeof( int ) );
-            memcpy( mCharWidth+256, unicodeCharWidth, 65280 * sizeof( int ) );
-        }
-        else {
-            memcpy( unicodeSpriteMap, mSpriteMap+256, 65280 * sizeof( SpriteHandle ) );
-            memcpy( unicodeCharLeftEdgeOffset, mCharLeftEdgeOffset+256, 65280 * sizeof( int ) );
-            memcpy( unicodeCharWidth, mCharWidth+256, 65280 * sizeof( int ) );
         }
 
         // now that we've read in all characters, we can do real kerning
@@ -467,11 +473,11 @@ Font::Font( const char *inFileName, int inCharSpacing, int inSpaceWidth,
 
 
 Font::~Font() {
-    for( int i=0; i<256; i++ ) {
+    for( int i=0; i<65536; i++ ) {
         if( mSpriteMap[i] != NULL ) {
             freeSprite( mSpriteMap[i] );
             }
-        if( mKerningTable[i] != NULL ) {
+        if( i < 256 && mKerningTable[i] != NULL ) {
             delete mKerningTable[i];
             }
         }
