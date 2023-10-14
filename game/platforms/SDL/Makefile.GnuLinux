@@ -15,7 +15,7 @@
 ##
 
 
-PLATFORM_COMPILE_FLAGS = -DLINUX -I/usr/local/include/freetype2
+PLATFORM_COMPILE_FLAGS = -DLINUX -I/usr/include/freetype2
 
 
 # various GL and X windows  librariesneeded for linux
