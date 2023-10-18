@@ -15,7 +15,7 @@
 # __mac__ to trigger certain mac-specific coping code
 # paths to GL and GLUT headers
 
-PLATFORM_COMPILE_FLAGS = -DBSD -D__mac__ -I/usr/local/Cellar/freetype/2.13.2/include/freetype2 -mmacosx-version-min=10.9
+PLATFORM_COMPILE_FLAGS = -DBSD -D__mac__ -I/usr/local/opt/freetype/include/freetype2 -mmacosx-version-min=10.9
 
 
 # various frameworks to support OpenGL
