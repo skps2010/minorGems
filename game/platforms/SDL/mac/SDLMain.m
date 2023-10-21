@@ -117,6 +117,8 @@ static NSString *getApplicationName(void)
             printf( "If you're running this from the command line, "
                     "the working directory is being overridden and set "
                     "to %s\n\n", parentdir );
+            NSString *str = [NSString stringWithUTF8String:parentdir];
+            [str writeToFile:@"stdout.txt" atomically:YES encoding:NSUTF8StringEncoding error:nil];
 		}
 		CFRelease(url);
 		CFRelease(url2);
