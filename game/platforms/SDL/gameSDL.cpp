@@ -1552,7 +1552,7 @@ int mainFunction( int inNumArgs, char **inArgs ) {
         // arg 0 is the path to the app executable
         char *appDirectoryPath = stringDuplicate( inArgs[0] );
     
-        char *bundleName = autoSprintf( "%s_%d.app", 
+        char *bundleName = autoSprintf( "%s_v%d.app", 
                                         getAppName(), getAppVersion() );
 
         char *appNamePointer = strstr( appDirectoryPath, bundleName );
@@ -1560,7 +1560,7 @@ int mainFunction( int inNumArgs, char **inArgs ) {
         if( appNamePointer != NULL ) {
             // terminate full app path to get parent directory
             appNamePointer[0] = '\0';
-            
+
             chdir( appDirectoryPath );
             }
                 
