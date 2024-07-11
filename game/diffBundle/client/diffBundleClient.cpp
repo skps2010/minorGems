@@ -143,7 +143,11 @@ char startUpdate( char *inUpdateServerURL, int inOldVersionNumber,
         hgFileC.exists() ||
         hgFileD.exists() ||
         hgFileE.exists() ) {
-    
+        
+        AppLog::error( "Starting diff bundle client update failed because it "
+                       "seems like we're inside a Mercurial repository "
+                       "(.hg folder found)" );
+
         return false;
         }
 
@@ -165,7 +169,11 @@ char startUpdate( char *inUpdateServerURL, int inOldVersionNumber,
         gitFileC.exists() ||
         gitFileD.exists() ||
         gitFileE.exists() ) {
-    
+        
+        AppLog::error( "Starting diff bundle client update failed because it  "
+                       "seems like we're inside a Git repository "
+                       "(.git folder found)" );
+
         return false;
         }
     
@@ -180,6 +188,13 @@ char startUpdate( char *inUpdateServerURL, int inOldVersionNumber,
 
         if( skipUniversalBundles ) {
             // but not if we're skipping them
+            
+            AppLog::error( 
+                "Starting diff bundle client update failed becasue binary.txt "
+                "file not found AND we're also have skipUniversalBundles set "
+                "(so we're not downloading binary, platform-specific bundles, "
+                "nor are we downloading platform-independent data bundles)" );
+
             return false;
             }
 

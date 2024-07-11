@@ -1610,20 +1610,11 @@ static void showMessage( const char *inAppName,
         uType |= MB_ICONINFORMATION;    
         }
     
-    chart *fullTitle = autoSprintf( "%s:  %s", inAppName, inTitle );
-
-    wchar_t *wideTitle = new wchar_t[ strlen( fullTitle ) * 2 + 2 ];
-    mbstowcs( wideTitle, fullTitle, strlen( fullTitle ) + 1 );
+    char *fullTitle = autoSprintf( "%s:  %s", inAppName, inTitle );
+    
+    MessageBox( NULL, inMessage, fullTitle, uType );
 
     delete [] fullTitle;
-    
-    wchar_t *wideMessage = new wchar_t[ strlen( inMessage ) * 2 + 2 ];
-    mbstowcs( wideMessage, inMessage, strlen( inMessage ) + 1 );
-    
-    MessageBox( NULL, wideMessage, wideTitle, uType );
-
-    delete [] wideTitle;
-    delete [] wideMessage;
     }
 
 
