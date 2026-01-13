@@ -1,4 +1,5 @@
-; Modification History
+
+										; Modification History
 ;;
 ;; 2001-March-10   Jason Rohrer
 ;; Created.
@@ -21,6 +22,9 @@
 ;;
 
 (setq frame-title-format "emacs: %b")
+
+(setq default-frame-alist '((width . 81) (height . 31)))
+
 
 ;; Stop forcing newlines at the end of every file, please
 (setq mode-require-final-newline nil)
@@ -268,3 +272,106 @@
 ;; don't show help screen at startup
 (setq inhibit-startup-message t)
 (setq inhibit-splash-screen t)
+
+
+;; don't open a buffer for output of async shell commands
+(setq async-shell-command-display-buffer nil)
+
+(defvar ddd-debug-line-command nil
+  "The last executable used for debugging in 'ddd-debug-line'.")
+
+
+(defun ddd-debug-line (executable)
+  "Start ddd with gdb, set a breakpoint at the current line, and run."
+  (interactive
+   (list (read-shell-command "Command to debug: " (or ddd-debug-line-command "./myProgram" ) )))  ;; Auto-complete based on current directory
+    
+  (let ((file (buffer-file-name))             ; Get current file
+        (line (line-number-at-pos)))          ; Get current line number
+    (if (and file line)
+		(with-temp-buffer
+        (async-shell-command
+         (format "ddd --debugger 'gdb -ex \"break %s:%d\" -ex \"run\"' %s"
+                 (file-name-nondirectory file) line executable )
+		 ) )
+      (message "Not in a file or unable to get line number!"))
+;; Store the last used executable
+    (setq ddd-debug-line-command executable)))
+
+
+
+
+
+
+(require 'cl-lib)
+(require 'subr-x)  ;; for string-trim-left
+
+(defun jcr-prev-line-column-starts ()
+  "Return a list of column numbers where tokens start on the
+nearest usable previous line.
+
+Skips lines that are:
+  - completely blank,
+  - only spaces/tabs, or
+  - whose first non-space character is '/' (comment lines).
+
+A token start is a non-space character that is either at BOL or
+immediately preceded by a space or tab."
+  (save-excursion
+    (let ((found nil))
+      ;; Walk upward until we find a “real” line or hit bobp.
+      (while (and (not found)
+                  (not (bobp)))
+        (forward-line -1)
+        (let* ((line (buffer-substring-no-properties
+                      (line-beginning-position)
+                      (line-end-position)))
+               (trimmed (string-trim-left line)))
+          (cond
+           ;; Blank / whitespace-only line: keep going
+           ((string-match-p "\\`[ \t]*\\'" line)
+            nil)
+           ;; First non-space is '/', treat as comment: keep going
+           ((and (> (length trimmed) 0)
+                 (eq (aref trimmed 0) ?/))
+            nil)
+           ;; Otherwise, this is our reference line
+           (t
+            (setq found t)))))
+      (when found
+        (let ((cols nil)
+              (eol (line-end-position))
+              (prev-space t))
+          (beginning-of-line)
+          (while (< (point) eol)
+            (let ((ch (char-after)))
+              (if (or (eq ch ?\s) (eq ch ?\t) (eq ch ?*))
+                  (setq prev-space t)
+                (when prev-space
+                  (push (current-column) cols))
+                (setq prev-space nil)))
+            (forward-char 1))
+          (nreverse cols)))))
+  )
+
+
+
+(defun jcr-next-column ()
+  "Insert spaces to move point to the next \"column\" defined by previous line.
+
+Columns are defined by the token start positions on the previous line.
+Repeated calls keep moving to later columns. Only spaces are inserted;
+text before point is not disturbed."
+  (interactive)
+  (let* ((cols (jcr-prev-line-column-starts))
+         (cur  (if (eq (following-char) ?*)
+				   (+ (current-column) 1)
+				 (current-column) ) )
+         (target (cl-loop for c in cols
+                          when (> c cur) return c)))
+    (when target
+      (let ((n (- target cur)))
+        (when (> n 0)
+          (insert (make-string n ?\s))))))
+  ;; If there is no later column, do nothing.
+  )
