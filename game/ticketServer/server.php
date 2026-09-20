@@ -150,6 +150,12 @@ else if( $action == "bulk_email_opt_out" ) {
 else if( $action == "bulk_account_delete" ) {
     ts_bulkAccountDelete();
     }
+else if( $action == "bulk_account_block" ) {
+    ts_bulkAccountBlock();
+    }
+else if( $action == "bulk_account_unblock" ) {
+    ts_bulkAccountUnblock();
+    }
 else if( $action == "check_ticket" ) {
     ts_checkTicket();
     }
@@ -561,6 +567,36 @@ function ts_sellTicket() {
     
             $found_unused_id = 0;
             $salt = 0;
+
+
+            // watch for attempted duplicate creation of ticket for
+            // existing steamID that already has a ticket
+            if( ! $manual
+                &&
+                preg_match( "#(\d+)@steamgames.com#", $email, $matches ) ) {
+
+                // this is a "fake" steam user email
+
+                // do they already have an account here?
+
+                // If so, return that existing ticket, which allows
+                // steamGate to recover from a loss of data without
+                // force-generating new tickets for every existing user
+                
+                $query = "SELECT ticket_id FROM $tableNamePrefix"."tickets ".
+                    "WHERE email = '$email' AND blocked = '0';";
+                $result = ts_queryDatabase( $query );
+
+                $numRows = mysqli_num_rows( $result );
+
+                if( $numRows > 0 ) {
+                    $ticket_id = ts_mysqli_result( $result, 0, "ticket_id" );
+
+                    echo "$ticket_id";
+                    return;
+                    }
+                }
+
             
             
             while( ! $found_unused_id ) {
@@ -1080,6 +1116,159 @@ function ts_bulkAccountDelete() {
 
     echo "Summary:  $failedCount Failed, ".
         "$successCount deleted.";
+    echo "<hr>";
+    ts_showData( false );
+    }
+
+
+function ts_bulkAccountBlock() {
+    ts_checkPassword( "bulk_account_block" );
+
+    global $tableNamePrefix, $remoteIP, $ts_mysqlLink;
+
+    $confirm = ts_requestFilter( "confirm", "/[01]/", 0 );
+
+    if( $confirm != 1 ) {
+        echo "Confirmation required.";
+        echo "<hr>";
+        ts_showData( false );
+        return;
+        }
+    
+    
+    // input filtering handled below
+    $emails = "";
+    if( isset( $_REQUEST[ "emails" ] ) ) {
+        $emails = trim( $_REQUEST[ "emails" ] );
+        }
+    
+    $emailArray = preg_split( "/\s+/", $emails );
+
+
+    $totalCount = count( $emailArray );
+    ts_log( "$totalCount account blocks initiated by $remoteIP" );
+
+
+    $failedCount = 0;
+    $successCount = 0;
+    foreach( $emailArray as $email ) {        
+        $unfilteredEmail = $email;
+        $email = ts_filter( $email, "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i", "" );
+
+        if( $email == "" ) {
+            echo "Invalid email address: $unfilteredEmail<br>";
+            $failedCount++;
+            }
+        else {
+            $email = strtolower( $email );
+
+            $query = "SELECT ticket_id FROM $tableNamePrefix"."tickets ".
+                "WHERE email = '$email';";
+            
+            $result = ts_queryDatabase( $query );
+
+
+            $numRows = mysqli_num_rows( $result );
+
+            for( $i=0; $i<$numRows; $i++ ) {
+                $ticket_id = ts_mysqli_result( $result, $i, "ticket_id" );
+
+                $query = "UPDATE $tableNamePrefix"."tickets SET " .
+                    "blocked = '1' " .
+                    "WHERE ticket_id = '$ticket_id';";
+                
+                $result = ts_queryDatabase( $query );
+
+                ts_log( "$ticket_id for $email blocked by  $remoteIP" );
+                
+                $successCount ++;
+                }
+            if( $numRows == 0 ) {
+                echo "Email $email not found<br>";
+                $failedCount++;
+                }
+            }
+        }
+
+    echo "Summary:  $failedCount Failed, ".
+        "$successCount blocked.";
+    echo "<hr>";
+    ts_showData( false );
+    }
+
+
+
+function ts_bulkAccountUnblock() {
+    ts_checkPassword( "bulk_account_unblock" );
+
+    global $tableNamePrefix, $remoteIP, $ts_mysqlLink;
+
+    $confirm = ts_requestFilter( "confirm", "/[01]/", 0 );
+
+    if( $confirm != 1 ) {
+        echo "Confirmation required.";
+        echo "<hr>";
+        ts_showData( false );
+        return;
+        }
+    
+    
+    // input filtering handled below
+    $emails = "";
+    if( isset( $_REQUEST[ "emails" ] ) ) {
+        $emails = trim( $_REQUEST[ "emails" ] );
+        }
+    
+    $emailArray = preg_split( "/\s+/", $emails );
+
+
+    $totalCount = count( $emailArray );
+    ts_log( "$totalCount account unblocks initiated by $remoteIP" );
+
+
+    $failedCount = 0;
+    $successCount = 0;
+    foreach( $emailArray as $email ) {        
+        $unfilteredEmail = $email;
+        $email = ts_filter( $email, "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i", "" );
+
+        if( $email == "" ) {
+            echo "Invalid email address: $unfilteredEmail<br>";
+            $failedCount++;
+            }
+        else {
+            $email = strtolower( $email );
+
+            $query = "SELECT ticket_id FROM $tableNamePrefix"."tickets ".
+                "WHERE email = '$email';";
+            
+            $result = ts_queryDatabase( $query );
+
+
+            $numRows = mysqli_num_rows( $result );
+
+            for( $i=0; $i<$numRows; $i++ ) {
+                $ticket_id = ts_mysqli_result( $result, $i, "ticket_id" );
+
+                $query = "UPDATE $tableNamePrefix"."tickets SET " .
+                    "blocked = '0' " .
+                    "WHERE ticket_id = '$ticket_id';";
+                
+                $result = ts_queryDatabase( $query );
+
+                ts_log( "$ticket_id for $email blocked by  $remoteIP" );
+                
+                $successCount ++;
+                }
+            if( $numRows == 0 ) {
+                echo "Email $email not found<br>";
+                $failedCount++;
+                }
+            }
+        }
+
+    echo "Summary:  $failedCount Failed, ".
+        "$successCount unblocked.";
     echo "<hr>";
     ts_showData( false );
     }
@@ -1824,6 +2013,14 @@ function ts_showData( $checkPassword = true ) {
             "Next Page</a>]";
         }
 
+    $bigSkip = $nextSkip + 200;
+
+    if( $bigSkip < $totalTickets ) {
+        echo "[<a href=\"server.php?action=show_data" .
+            "&skip=$bigSkip&search=$search&order_by=$order_by\">".
+            "Big Jump</a>]";
+        }
+
     echo "<br><br>";
     
     echo "<table border=1 cellpadding=5>\n";
@@ -2094,7 +2291,38 @@ function ts_showData( $checkPassword = true ) {
     <INPUT TYPE="Submit" VALUE="REMOVE">
     </FORM>
         </td>
+
+             </tr>
+             <tr>
 <?php
+
+    // form for bulk account blocking
+?>
+        <td>
+        Mass account BLOCK:<br><br>
+            <FORM ACTION="server.php" METHOD="post">
+    <INPUT TYPE="hidden" NAME="action" VALUE="bulk_account_block">
+             Emails (one per line):<br>
+             <TEXTAREA NAME="emails" COLS=30 ROWS=10></TEXTAREA><br>
+    <INPUT TYPE="checkbox" NAME="confirm" VALUE=1> Confirm<br>      
+    <INPUT TYPE="Submit" VALUE="BLOCK">
+    </FORM>
+        </td>
+<?php
+
+    // form for bulk account unblocking
+?>
+        <td>
+        Mass account UNBLOCK:<br><br>
+            <FORM ACTION="server.php" METHOD="post">
+    <INPUT TYPE="hidden" NAME="action" VALUE="bulk_account_unblock">
+             Emails (one per line):<br>
+             <TEXTAREA NAME="emails" COLS=30 ROWS=10></TEXTAREA><br>
+    <INPUT TYPE="checkbox" NAME="confirm" VALUE=1> Confirm<br>      
+    <INPUT TYPE="Submit" VALUE="UNBLOCK">
+    </FORM>
+        </td>
+<?php               
 
           
           

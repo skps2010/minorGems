@@ -628,6 +628,14 @@ function rs_showData( $checkPassword = true ) {
             "Next Page</a>]";
         }
 
+    $bigSkip = $nextSkip + 200;
+
+    if( $bigSkip < $totalRecords ) {
+        echo " [<a href=\"server.php?action=show_data" .
+            "&skip=$bigSkip&search=$search&order_by=$order_by\">".
+            "Big Jump</a>]";
+        }
+
     echo "<br><br>";
     
     echo "<table border=1 cellpadding=5>\n";
@@ -2171,7 +2179,7 @@ function rs_getStats() {
 
     $game_count = 0;
     $game_total_seconds = 0;
-    
+    $account_existed_days = 0;
     
     if( $trueSeq == 0 ) {
         // no record exists....
@@ -2187,7 +2195,9 @@ function rs_getStats() {
             "WHERE email = '$email'; ";
         rs_queryDatabase( $query );
 
-        $query = "SELECT game_count, game_total_seconds ".
+        $query = "SELECT game_count, game_total_seconds, ".
+            "TIMESTAMPDIFF( DAY, first_game_date, NOW() ) AS ".
+            "     account_existed_days ".
             "FROM $tableNamePrefix"."user_stats ".
             "WHERE email = '$email'; ";
 
@@ -2200,11 +2210,13 @@ function rs_getStats() {
             $game_count = rs_mysqli_result( $result, 0, "game_count" );
             $game_total_seconds =
                 rs_mysqli_result( $result, 0, "game_total_seconds" );
+            $account_existed_days =
+                rs_mysqli_result( $result, 0, "account_existed_days" );
             }
         }
     
 
-    echo "$game_count\n$game_total_seconds\n";
+    echo "$game_count\n$game_total_seconds\n$account_existed_days\n";
     echo "OK";
     }
 
